@@ -71,7 +71,6 @@ impl Logic {
 
 
         if pkt_timestamp < self.client_time as u32 {
-            log::debug!("packet rejected (timestamp)");
             return PacketParseResult::Ignore;
         }
 
@@ -217,14 +216,27 @@ impl Logic {
             LocationType::Checkpoint(checkpoint) => {
                 if self.race_manager.eval(checkpoint) {
                     self.send_checkpoint(checkpoint);
-                    if checkpoint == 12 {
-                        self.send_flag("{tHosE_aRe_jUsT_gAmiNg_sKiLls}", true);
-                    }
 
                     if self.race_manager.get_total_time() < 5.0  && checkpoint == 12 {
                         self.send_flag("{fffffresh}",true);
                         self.race_manager.reset();
                     }
+
+                    if checkpoint == 12 {
+                        self.send_flag("{tHosE_aRe_jUsT_gAmiNg_sKiLls}", true);
+                        let mut msg = Vec::new();
+                        if !self.cs.unlocks.get(6) {
+                            self.cs.unlocks.set(6);
+                            if self.cs.unlocks.get_total()>=4 {
+                                self.cs.color.make_white();
+                            }
+                            msg.push(self.cs.unlocks.get_raw()); // new emoji
+                            msg.push(self.cs.color.get_raw()); // rabbitcolor
+                            self.send(0x55, &mut msg);
+                            self.has_new_unlock = true;
+                        }
+                    }
+
                 }
                 self.cs.setpos(pkt_pos_x, pkt_pos_y, pkt_pos_z);
             }
@@ -253,7 +265,7 @@ impl Logic {
         let pkt_timestamp = unsafe { mem::transmute::<[u8; 8], u64>(payload[10..18].try_into().unwrap()) };
 
         if pkt_timestamp < self.client_time {
-            return PacketParseResult::HardError;
+            return PacketParseResult::Ignore;
         }
 
 
