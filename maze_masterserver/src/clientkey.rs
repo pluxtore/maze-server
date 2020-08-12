@@ -1,11 +1,11 @@
-use serde::Serialize;
+use serde::Deserialize;
 
 #[derive(Eq)]
 #[derive(PartialEq)]
 #[derive(Debug)]
 #[derive(Hash)]
 #[derive(Clone)]
-#[derive(Serialize)]
+#[derive(Deserialize)]
 pub struct ClientKey {
     key : [u8;8],   
 }

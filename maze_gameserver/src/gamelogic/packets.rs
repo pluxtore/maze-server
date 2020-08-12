@@ -4,6 +4,8 @@ use super::map::{LocationType,Flag};
 use super::types::*;
 use byteorder::{LittleEndian, WriteBytesExt};
 use std::convert::TryInto;
+use super::sboard;
+use super::score::Score;
 
 /* ######## packet types  ######## */
 #[derive(Clone)]
@@ -86,11 +88,11 @@ impl Logic {
             }
         }
 
-        self.client_time = pkt_timestamp as u64;
 
         match mazemap.eval_position(pkt_pos_x,pkt_pos_z) {
             LocationType::Allowed => {
                 self.cs.setpos(pkt_pos_x, pkt_pos_y, pkt_pos_z);
+                self.client_time = pkt_timestamp as u64;
             },
             LocationType::NotAllowed => {
                 self.send_text("detected hax :-/");
@@ -104,11 +106,7 @@ impl Logic {
                             if self.cs.unlocks.get_total()>=4 {
                                 self.cs.color.make_white();
                             }
-                            let mut msg = Vec::new();
-                            msg.push(self.cs.unlocks.get_raw());
-                            msg.push(self.cs.color.get_raw());
-                            self.send(0x55, &mut msg);
-                            self.has_new_unlock = true;
+                            self.send_unlocks();
                         }
 
                     },
@@ -118,11 +116,7 @@ impl Logic {
                             if self.cs.unlocks.get_total()>=4 {
                                 self.cs.color.make_white();
                             }
-                            let mut msg = Vec::new();
-                            msg.push(self.cs.unlocks.get_raw());
-                            msg.push(self.cs.color.get_raw());
-                            self.send(0x55, &mut msg);
-                            self.has_new_unlock = true;
+                            self.send_unlocks();
                         }
                     },
                     Place::Lava => {
@@ -131,11 +125,7 @@ impl Logic {
                             if self.cs.unlocks.get_total()>=4 {
                                 self.cs.color.make_white();
                             }
-                            let mut msg = Vec::new();
-                            msg.push(self.cs.unlocks.get_raw());
-                            msg.push(self.cs.color.get_raw());
-                            self.send(0x55, &mut msg);
-                            self.has_new_unlock = true;
+                            self.send_unlocks();
                         }
                     },
                     Place::Tower => {
@@ -144,17 +134,14 @@ impl Logic {
                             if self.cs.unlocks.get_total()>=4 {
                                 self.cs.color.make_white();
                             }
-                            let mut msg = Vec::new();
-                            msg.push(self.cs.unlocks.get_raw());
-                            msg.push(self.cs.color.get_raw());
-                            self.send(0x55, &mut msg);
-                            self.has_new_unlock = true;
+                            self.send_unlocks();
 
                         }
                     },
                     _ => (),
                 }
                 self.cs.setpos(pkt_pos_x, pkt_pos_y, pkt_pos_z);
+                self.client_time = pkt_timestamp as u64;
             }
             LocationType::TeleportAway(place) => {
                 let is_ok = match place {
@@ -170,6 +157,7 @@ impl Logic {
                     self.send_text("Teleporter locked. Area not discovered yet.");
                     self.cs.setpos(pkt_pos_x, pkt_pos_y, pkt_pos_z);
                 }
+                self.client_time = pkt_timestamp as u64;
             },
             LocationType::DieZone => {
                 if pkt_pos_y<5000 && pkt_pos_y>-5000 {
@@ -177,9 +165,9 @@ impl Logic {
                     self.cs.set_alive(false);
                 }
                 self.cs.setpos(pkt_pos_x, pkt_pos_y, pkt_pos_z);
+                self.client_time = pkt_timestamp as u64;
             }
             LocationType::FlagArea(flag) => {
-                let mut msg = Vec::new();
                 match flag {
                     Flag::Lava => {
                         self.send_flag("{U_haz_been_banned_by_B4TTL3Y3}", true);
@@ -188,10 +176,7 @@ impl Logic {
                             if self.cs.unlocks.get_total()>=4 {
                                 self.cs.color.make_white();
                             }
-                            msg.push(self.cs.unlocks.get_raw());
-                            msg.push(self.cs.color.get_raw());
-                            self.send(0x55, &mut msg);
-                            self.has_new_unlock = true;
+                            self.send_unlocks();
 
                         }
                     }
@@ -203,45 +188,43 @@ impl Logic {
                                 if self.cs.unlocks.get_total()>=4 {
                                     self.cs.color.make_white();
                                 }
-                                msg.push(self.cs.unlocks.get_raw()); // new emoji
-                                msg.push(self.cs.color.get_raw()); // rabbitcolor
-                                self.send(0x55, &mut msg);
-                                self.has_new_unlock = true;
+                                self.send_unlocks();
                             }
                         }
                     }
                 }
                 self.cs.setpos(pkt_pos_x, pkt_pos_y, pkt_pos_z);
+                self.client_time = pkt_timestamp as u64;
             }
             LocationType::Checkpoint(checkpoint) => {
                 if self.race_manager.eval(checkpoint) {
                     self.send_checkpoint(checkpoint);
 
-                    if self.race_manager.get_total_time() < 5.0  && checkpoint == 12 {
-                        self.send_flag("{fffffresh}",true);
-                        self.race_manager.reset();
-                    }
-
                     if checkpoint == 12 {
+                        let score = self.race_manager.get_total_time();
+
+                        sboard.lock().unwrap().push_score(&Score::new(self.id.get_key().clone(), self.id.name.clone(),score));
+
+                        if score < 5.0 {
+                            self.send_flag("{fffffresh}",true);
+                            self.race_manager.reset();
+                        }
+
                         self.send_flag("{tHosE_aRe_jUsT_gAmiNg_sKiLls}", true);
-                        let mut msg = Vec::new();
                         if !self.cs.unlocks.get(6) {
                             self.cs.unlocks.set(6);
                             if self.cs.unlocks.get_total()>=4 {
                                 self.cs.color.make_white();
                             }
-                            msg.push(self.cs.unlocks.get_raw()); // new emoji
-                            msg.push(self.cs.color.get_raw()); // rabbitcolor
-                            self.send(0x55, &mut msg);
-                            self.has_new_unlock = true;
+                            self.send_unlocks();
                         }
                     }
 
                 }
                 self.cs.setpos(pkt_pos_x, pkt_pos_y, pkt_pos_z);
+                self.client_time = pkt_timestamp as u64;
             }
         };
-
 
         self.last_posupdate = timer.elapsed().as_secs_f32();
         PacketParseResult::OkDispatch(PosUpdate{
@@ -313,11 +296,7 @@ impl Logic {
                 if self.cs.unlocks.get_total()>=4 {
                     self.cs.color.make_white();
                 }
-                let mut msg = Vec::new();
-                msg.push(self.cs.unlocks.get_raw());
-                msg.push(self.cs.color.get_raw());
-                self.send(0x55, &mut msg);
-                self.has_new_unlock = true;
+                self.send_unlocks();
             }
         }
         self.last_emoji = timer.elapsed().as_secs_f32();
@@ -370,6 +349,14 @@ impl Logic {
 
     pub fn send_checkpoint(&mut self, checkpoint : u8) {
         self.send(0x52, &mut [checkpoint].to_vec());
+    }
+
+    pub fn send_unlocks(&mut self) {
+        let mut msg = Vec::new();
+        msg.push(self.cs.unlocks.get_raw()); // new emoji
+        msg.push(self.cs.color.get_raw()); // rabbitcolor
+        self.send(0x55, &mut msg);
+        self.has_new_unlock = true;
     }
 
     pub fn send_teleport(&mut self, place : Place) {
