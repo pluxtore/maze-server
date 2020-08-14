@@ -4,7 +4,6 @@ use super::map::{LocationType,Flag};
 use super::types::*;
 use byteorder::{LittleEndian, WriteBytesExt};
 use std::convert::TryInto;
-use super::sboard;
 use super::score::Score;
 
 /* ######## packet types  ######## */
@@ -203,7 +202,11 @@ impl Logic {
                     if checkpoint == 12 {
                         let score = self.race_manager.get_total_time();
 
-                        sboard.lock().unwrap().push_score(&Score::new(self.id.get_key().clone(), self.id.name.clone(),score));
+                        if self.cs.get_highscore() > score {
+                            log::debug!("updating hs from {} to {}", self.cs.get_highscore(), score);
+                            push_score(&Score::new(self.id.get_key().clone(), self.id.name.clone(),score));
+                            self.cs.set_highscore(score);
+                        }
 
                         if score < 5.0 {
                             self.send_flag("{fffffresh}",true);

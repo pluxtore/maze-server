@@ -26,7 +26,7 @@ use clientkey::ClientKey;
 use types::*;
 use antispam::AntiSpam;
 use raceman::RaceManager;
-use scoreboard_manager::ScoreboardManager;
+use scoreboard_manager::push_score;
 
 #[macro_use]
 
@@ -36,7 +36,6 @@ lazy_static::lazy_static! {
     pub static ref timer : std::time::Instant = Instant::now();
     pub static ref uid_dict : Mutex<HashMap<[u8;4], (Vec<u8>, Unlocks,RabbitColor)>> = Mutex::new(HashMap::new());
     pub static ref mazemap : Map = Map::new("maze.map");
-    pub static ref sboard : Mutex<ScoreboardManager> = Mutex::new(ScoreboardManager::new());
     pub static ref packets_per_second_limit : u16 = 35;
     pub static ref max_distance_per_packet : f64 = 100000.0;
     pub static ref mid_spawn : (i32,i32,i32 ) = (2658 * 1000, 10 *10000, 2393 * 1000);

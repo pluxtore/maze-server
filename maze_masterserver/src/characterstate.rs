@@ -10,5 +10,5 @@ pub struct CharacterState {
     is_new: bool,
     pub unlocks: Unlocks,
     pub color : RabbitColor,
+    highscore : f32,
 }
-

@@ -14,6 +14,7 @@ pub struct CharacterState {
     is_new: bool,
     pub unlocks: Unlocks,
     pub color : RabbitColor,
+    highscore : f32,
 }
 
 impl CharacterState {
@@ -25,6 +26,7 @@ impl CharacterState {
             is_new: true,
             unlocks: Unlocks::new(),
             color : RabbitColor::new(),
+            highscore : 100000000000000.0,
         }
     }
     pub fn setpos(&mut self, x: i32, y: i32, z: i32) {
@@ -42,6 +44,14 @@ impl CharacterState {
 
     pub fn update_name(&mut self, newname: &Vec<u8>) {
         self.name = newname.clone();
+    }
+
+    pub fn set_highscore(&mut self, hs : f32) {
+        self.highscore = hs;
+    }
+
+    pub fn get_highscore(&self) -> f32 {
+        self.highscore
     }
 
     pub fn shutdown(&mut self, key : &ClientKey) {

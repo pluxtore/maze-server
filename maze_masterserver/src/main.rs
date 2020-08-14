@@ -1,7 +1,7 @@
 #![feature(proc_macro_hygiene, decl_macro)]
+#![allow(non_upper_case_globals)]
 #[macro_use] extern crate rocket;
 #[macro_use] extern crate lazy_static;
-
 mod clientkey;
 mod characterstate;
 mod score;
@@ -9,16 +9,17 @@ mod unlocks;
 mod rabbitcolor;
 
 use std::sync::Mutex;
-use std::net::{TcpListener, TcpStream};
+use std::net::{TcpListener, TcpStream, Shutdown};
 use std::io::prelude::*;
 use clientkey::ClientKey;
 use score::Score;
 use std::collections::HashMap;
-use std::ops::Deref;
 use std::ops::DerefMut;
+use std::convert::TryInto;
 
 lazy_static! {
     pub static ref board : Mutex<String> = Mutex::new(String::new());
+    pub static ref allscores : Mutex<HashMap<ClientKey, f32>> = Mutex::new(HashMap::new());
 }
 
 #[get("/api/<req>")]
@@ -36,11 +37,41 @@ fn api(req: String) -> String {
     }
 }
 
+
+#[get("/api/highscore/<req>")]
+fn highscore(req : String) -> String {
+    println!("new highscore request");
+    let key = match hex::decode(req.clone()) {
+        Ok(e) => e,
+        _ => return "".to_string()
+    };
+    if key.len() != 8 {
+        return "".to_string();
+    }
+    let ckey = ClientKey::new(key.as_slice().try_into().unwrap());
+
+
+    match allscores.lock().unwrap().get(&ckey) {
+        Some(e) => {
+            println!("taking from allscores...");
+            let mut hs = e.to_string();
+            match hs.split_off(3) {
+                _ => (),
+            }
+            return hs;
+        },
+        None => {
+            return "".to_string();
+        },
+    };
+}
+
+
 fn main() {
     std::thread::spawn(move || {
         Handler::new().handler();        
     });
-    rocket::ignite().mount("/", routes![api]).launch();
+    rocket::ignite().mount("/", routes![api,highscore]).launch();
 }
 
 struct Handler {
@@ -56,7 +87,6 @@ impl Handler {
         }
     }
 
-
     fn handler(&mut self) {
         let listener = match TcpListener::bind("127.0.0.1:42069") {
             Ok(e) => e,
@@ -66,11 +96,15 @@ impl Handler {
         };
 
         loop {
-            let (socket,_) = match listener.accept() {
-                Ok(e) => e,
-                _ => continue,
-            };
-            self.process(socket);
+            for stream in listener.incoming() {
+                match stream {
+                    Ok(e) => {
+                        self.process(e);
+                    }
+                    _ => {
+                    }
+                }
+            }
         }
     }
 
@@ -80,7 +114,20 @@ impl Handler {
             Ok(e) => e,
             _ => return,
         };
+
+        match stream.shutdown(Shutdown::Both) {
+            _ => (),
+        }
+
+
         let score : Score = bincode::deserialize(&buf[..len]).unwrap();
+
+        if !allscores.lock().unwrap().contains_key(&score.key) {
+            allscores.lock().unwrap().insert(score.key.clone(), score.score);
+        } else {
+            * allscores.lock().unwrap().get_mut(&score.key).unwrap() = score.score; 
+        }
+
 
         if self.lowest_hs > score.score || self.scorelist.len() < 10 {
             /* create or update entry */ 
@@ -104,7 +151,7 @@ impl Handler {
             lboard.clear();
 
             /* write */
-            let count = 1;
+            let mut count = 1;
             for entry in tmp {
                 lboard.deref_mut().push_str(&count.to_string());
                 lboard.deref_mut().push_str(". " );
@@ -112,6 +159,7 @@ impl Handler {
                 lboard.deref_mut().push_str( "  ");
                 lboard.deref_mut().push_str(&entry.1);
                 lboard.deref_mut().push('\n');
+                count+=1;
             }
         }
     }
