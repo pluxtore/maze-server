@@ -16,7 +16,7 @@ If everything goes to plan, the code in this repository will soon be run on a Di
 - [x] Race support
 - [x] Flags
 - [x] White Rabbit Bot
-- [ ] Highscore board
+- [x] Highscore board
 - [ ] Proper Anti-DDos
 
 
