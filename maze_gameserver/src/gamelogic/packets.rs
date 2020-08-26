@@ -81,7 +81,6 @@ impl Logic {
             let (relx,relz) : (i64,i64) = ( ( oldx-pkt_pos_x ).abs() as i64,  ( oldz-pkt_pos_z ).abs() as i64);
             let travelled_distance = ( ( ( i64::pow(relx,2)  + i64::pow(relz,2) ) )  as f64 ).sqrt();
             if travelled_distance > *max_distance_per_packet {
-                self.send_text("detected hax :-/");
                 self.send_teleport(Place::Custom);
                 return PacketParseResult::Ignore;
             }
@@ -94,8 +93,8 @@ impl Logic {
                 self.client_time = pkt_timestamp as u64;
             },
             LocationType::NotAllowed => {
-                self.send_text("detected hax :-/");
                 self.send_teleport(Place::Custom);
+                return PacketParseResult::Ignore;
             },
             LocationType::OnPlace(place) => {
                 match place {
