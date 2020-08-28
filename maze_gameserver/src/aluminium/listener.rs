@@ -23,12 +23,7 @@ impl Listener {
             }
             Ok(e) => e,
         };
-        match tmp.set_nonblocking(true) {
-            Ok(_) => (),
-            _  => {
-                log::error!("could not set nonblocking");
-            },
-        }
+
         log::info!("new instance on port {} created ", port);
         Self {
             socket: tmp,
