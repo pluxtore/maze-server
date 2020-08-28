@@ -2,11 +2,9 @@
 #![allow(non_upper_case_globals)]
 #[macro_use] extern crate rocket;
 #[macro_use] extern crate lazy_static;
+
 mod clientkey;
-mod characterstate;
 mod score;
-mod unlocks;
-mod rabbitcolor;
 
 use std::sync::Mutex;
 use std::net::{TcpListener, TcpStream, Shutdown};
@@ -40,7 +38,6 @@ fn api(req: String) -> String {
 
 #[get("/api/highscore/<req>")]
 fn highscore(req : String) -> String {
-    println!("new highscore request");
     let key = match hex::decode(req.clone()) {
         Ok(e) => e,
         _ => return "".to_string()
@@ -53,7 +50,6 @@ fn highscore(req : String) -> String {
 
     match allscores.lock().unwrap().get(&ckey) {
         Some(e) => {
-            println!("taking from allscores...");
             let mut hs = e.to_string();
             match hs.split_off(3) {
                 _ => (),
